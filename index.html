@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swirl Index</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a0a;
+        }
+        canvas {
+            display: block;
+        }
+        #nav {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+        #nav a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            font-family: sans-serif;
+            padding: 5px 0;
+            font-size: 18px;
+        }
+        #nav a:hover {
+            text-decoration: underline;
+        }
+        h1 {
+            color: white;
+            font-family: sans-serif;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="nav">
+        <h1>Swirls</h1>
+        <a href="swirl1.html">Swirl 1</a>
+        <a href="swirl2.html">Swirl 2</a>
+        <a href="swirl3.html">Swirl 3</a>
+        <a href="swirl4.html">Swirl 4</a>
+        <a href="swirl5.html">Swirl 5</a>
+        <a href="swirl6.html">Swirl 6</a>
+    </div>
+    <canvas id="gradient-canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gradient-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const colors = [
+            { r: 179, g: 233, b: 255 },
+            { r: 227, g: 245, b: 214 },
+            { r: 255, g: 249, b: 214 }
+        ];
+
+        let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, vx: 0, vy: 0 };
+        let lastMouse = { x: mouse.x, y: mouse.y };
+        const particles = [];
+        const particleCount = 2000; 
+        let time = 0;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x || Math.random() * window.innerWidth;
+                this.y = y || Math.random() * window.innerHeight;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.color = color;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.offset = Math.random() * 1000;
+            }
+
+            update() {
+                const swirlX = Math.cos(time + this.offset) * 0.4;
+                const swirlY = Math.sin(time + this.offset) * 0.4;
+
+                const gravityFactor = 0.00002; 
+                const dxToCenter = window.innerWidth / 2 - this.x;
+                const dyToCenter = window.innerHeight / 2 - this.y;
+                this.vx += dxToCenter * gravityFactor;
+                this.vy += dyToCenter * gravityFactor;
+
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                
+                this.x += this.vx + swirlX;
+                this.y += this.vy + swirlY;
+
+                const dx = this.x - mouse.x;
+                const dy = this.y - mouse.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 100) {
+                    const angle = Math.atan2(dy, dx);
+                    const force = (100 - distance) * 0.02;
+                    this.x += Math.cos(angle) * force + mouse.vx * 0.5;
+                    this.y += Math.sin(angle) * force + mouse.vy * 0.5;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.7)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            particles.length = 0;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(null, null, colors[i % colors.length]));
+            }
+        }
+
+        function animate() {
+            time += 0.005;
+
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            mouse.vx = (mouse.x - lastMouse.x) * 0.1;
+            mouse.vy = (mouse.y - lastMouse.y) * 0.1;
+            lastMouse.x = mouse.x;
+            lastMouse.y = mouse.y;
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                e.preventDefault(); 
+                mouse.x = e.touches[0].clientX;
+                mouse.y = e.touches[0].clientY;
+            }
+        }, { passive: false });
+        
+        window.addEventListener('touchend', () => {
+            mouse.vx = 0;
+            mouse.vy = 0;
+        });
+
+        window.addEventListener('resize', init);
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

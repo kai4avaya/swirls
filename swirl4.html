@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watery Swirling Gradient</title>
+    <style>
+        /* Basic reset to ensure the canvas fills the entire screen */
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* Changed background back to the light blue tint */
+            background-color: #B3E9FF; /* Blue Tint 2 */
+        }
+        canvas {
+            display: block;
+            /* * This is the key to the watery/metaball effect.
+             * The blur filter merges the shapes together smoothly.
+             * The contrast filter sharpens the edges of the merged shape,
+             * creating the fluid, lava-lamp-like appearance.
+            */
+            filter: blur(30px) contrast(25);
+        }
+        #nav {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        #nav a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            font-family: sans-serif;
+            padding: 5px 0;
+            font-size: 18px;
+        }
+        #nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="nav">
+        <a href="index.html">Back to Index</a>
+    </div>
+    <!-- The canvas element where the animation will be drawn -->
+    <canvas id="gradient-canvas"></canvas>
+
+    <script>
+        // --- Setup ---
+        const canvas = document.getElementById('gradient-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // An array of colors now including the base purple and base blue for more variety
+        const colors = [
+            { r: 218, g: 41, b: 28 },   // Avaya Red
+            { r: 156, g: 77, b: 232 },  // Base Purple
+            { r: 97, g: 214, b: 255 },  // Base Blue
+            { r: 214, g: 191, b: 247 }, // Purple Tint 2
+            { r: 179, g: 233, b: 255 }, // Blue Tint 2
+            { r: 255, g: 249, b: 214 }, // Yellow Tint 2
+            { r: 227, g: 245, b: 214 }  // Green Tint 2
+        ];
+
+        // --- State ---
+        let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, vx: 0, vy: 0 };
+        let lastMouse = { x: mouse.x, y: mouse.y };
+        const blobs = [];
+        const blobCount = 7; // Increased to 7 for the new color
+        let time = 0; // Time variable for autonomous swirling
+
+        // --- Classes and Functions ---
+
+        /**
+         * Represents a single colored blob that moves on the canvas.
+         */
+        class Blob {
+            constructor(color) {
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+                this.vx = (Math.random() - 0.5) * 1; // Slightly slower base velocity
+                this.vy = (Math.random() - 0.5) * 1;
+                this.radius = window.innerWidth > 768 ? 400 : 220; 
+                this.color = color;
+                this.offset = Math.random() * 1000; // Unique offset for varied swirling
+            }
+
+            // Updates the blob's position
+            update() {
+                // Autonomous swirling motion based on time
+                const swirlX = Math.cos(time + this.offset) * 0.7;
+                const swirlY = Math.sin(time + this.offset) * 0.7;
+
+                // --- NEW: Gravity and Damping ---
+                // Add a gentle pull towards the center to keep blobs from scattering
+                const gravityFactor = 0.0005;
+                const dxToCenter = window.innerWidth / 2 - this.x;
+                const dyToCenter = window.innerHeight / 2 - this.y;
+                this.vx += dxToCenter * gravityFactor;
+                this.vy += dyToCenter * gravityFactor;
+
+                // Add damping to prevent velocities from growing infinitely
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                // --- END NEW ---
+                
+                // Move based on velocity and swirling
+                this.x += this.vx + swirlX;
+                this.y += this.vy + swirlY;
+
+                // Bounce off the screen edges
+                if (this.x < this.radius || this.x > window.innerWidth - this.radius) this.vx *= -1;
+                if (this.y < this.radius || this.y > window.innerHeight - this.radius) this.vy *= -1;
+
+                // Interaction with the mouse
+                const dx = this.x - mouse.x;
+                const dy = this.y - mouse.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // If mouse is close, push the blob away
+                if (distance < this.radius + 50) {
+                    const angle = Math.atan2(dy, dx);
+                    const force = (this.radius + 50 - distance) * 0.01;
+                    this.x += Math.cos(angle) * force + mouse.vx * 0.5;
+                    this.y += Math.sin(angle) * force + mouse.vy * 0.5;
+                }
+            }
+
+            // Draws the blob on the canvas
+            draw() {
+                // The metaball effect doesn't need a radial gradient, a solid circle works best.
+                // The blur and contrast filters will create the smooth blending.
+                ctx.fillStyle = `rgb(${this.color.r}, ${this.color.g}, ${this.color.b})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        /**
+         * Initializes the canvas size and creates the blobs.
+         */
+        function init() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            blobs.length = 0; // Clear existing blobs
+            for (let i = 0; i < blobCount; i++) {
+                blobs.push(new Blob(colors[i % colors.length]));
+            }
+        }
+
+        /**
+         * The main animation loop.
+         */
+        function animate() {
+            // Increment time for the swirling effect
+            time += 0.003;
+
+            // For the metaball effect, we don't need the trailing effect.
+            // We clear the canvas completely each frame.
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw each blob
+            blobs.forEach(blob => {
+                blob.update();
+                blob.draw();
+            });
+
+            // Calculate mouse velocity for more dynamic interaction
+            mouse.vx = (mouse.x - lastMouse.x) * 0.1;
+            mouse.vy = (mouse.y - lastMouse.y) * 0.1;
+            lastMouse.x = mouse.x;
+            lastMouse.y = mouse.y;
+
+            requestAnimationFrame(animate);
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                e.preventDefault(); // Prevent scrolling on mobile
+                mouse.x = e.touches[0].clientX;
+                mouse.y = e.touches[0].clientY;
+            }
+        }, { passive: false });
+        
+        window.addEventListener('touchend', () => {
+            mouse.vx = 0;
+            mouse.vy = 0;
+        });
+
+        window.addEventListener('resize', init);
+
+        // --- Start ---
+        init();
+        animate();
+    </script>
+</body>
+</html>
