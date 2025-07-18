@@ -8,20 +8,20 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #0a0a0a;
+            background-color: #2C2F33;
         }
         canvas {
             display: block;
+            filter: blur(30px) contrast(25);
         }
         #nav {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 10;
-            background: rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.5);
             padding: 15px;
             border-radius: 10px;
-            backdrop-filter: blur(5px);
         }
         #nav a {
             display: block;
@@ -58,60 +58,58 @@
         const ctx = canvas.getContext('2d');
 
         const colors = [
-            { r: 179, g: 233, b: 255 },
-            { r: 227, g: 245, b: 214 },
-            { r: 255, g: 249, b: 214 }
+            { r: 255, g: 99, b: 71 },  // Tomato
+            { r: 255, g: 165, b: 0 }, // Orange
+            { r: 255, g: 215, b: 0 },  // Gold
+            { r: 240, g: 128, b: 128 },// Light Coral
+            { r: 255, g: 69, b: 0 }    // OrangeRed
         ];
 
         let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, vx: 0, vy: 0 };
         let lastMouse = { x: mouse.x, y: mouse.y };
-        const particles = [];
-        const particleCount = 2000; 
+        const blobs = [];
+        const blobCount = 5;
         let time = 0;
 
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x || Math.random() * window.innerWidth;
-                this.y = y || Math.random() * window.innerHeight;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
+        class Blob {
+            constructor(color) {
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+                this.vx = (Math.random() - 0.5) * 2.5;
+                this.vy = (Math.random() - 0.5) * 2.5;
+                this.radius = window.innerWidth > 768 ? 300 : 150; 
                 this.color = color;
-                this.size = Math.random() * 1.5 + 0.5;
-                this.offset = Math.random() * 1000;
+                this.offset = Math.random() * 3000;
             }
 
             update() {
-                const swirlX = Math.cos(time + this.offset) * 0.4;
-                const swirlY = Math.sin(time + this.offset) * 0.4;
-
-                const gravityFactor = 0.00002; 
-                const dxToCenter = window.innerWidth / 2 - this.x;
-                const dyToCenter = window.innerHeight / 2 - this.y;
-                this.vx += dxToCenter * gravityFactor;
-                this.vy += dyToCenter * gravityFactor;
-
-                this.vx *= 0.98;
-                this.vy *= 0.98;
+                const swirlX = Math.cos(time + this.offset) * 0.8;
+                const swirlY = Math.sin(time + this.offset) * 0.8;
                 
                 this.x += this.vx + swirlX;
                 this.y += this.vy + swirlY;
+
+                if (this.x < -this.radius) this.x = window.innerWidth + this.radius;
+                if (this.x > window.innerWidth + this.radius) this.x = -this.radius;
+                if (this.y < -this.radius) this.y = window.innerHeight + this.radius;
+                if (this.y > window.innerHeight + this.radius) this.y = -this.radius;
 
                 const dx = this.x - mouse.x;
                 const dy = this.y - mouse.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < 100) {
+                if (distance < this.radius + 80) {
                     const angle = Math.atan2(dy, dx);
-                    const force = (100 - distance) * 0.02;
-                    this.x += Math.cos(angle) * force + mouse.vx * 0.5;
-                    this.y += Math.sin(angle) * force + mouse.vy * 0.5;
+                    const force = (this.radius + 80 - distance) * 0.01;
+                    this.x += Math.cos(angle) * force * 1.5;
+                    this.y += Math.sin(angle) * force * 1.5;
                 }
             }
 
             draw() {
-                ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.7)`;
+                ctx.fillStyle = `rgb(${this.color.r}, ${this.color.g}, ${this.color.b})`;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -120,22 +118,19 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             
-            particles.length = 0;
-            for (let i = 0; i < particleCount; i++) {
-                particles.push(new Particle(null, null, colors[i % colors.length]));
+            blobs.length = 0;
+            for (let i = 0; i < blobCount; i++) {
+                blobs.push(new Blob(colors[i % colors.length]));
             }
         }
 
         function animate() {
-            time += 0.005;
-
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            time += 0.0025;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            particles.forEach(particle => {
-                particle.update();
-                particle.draw();
+            blobs.forEach(blob => {
+                blob.update();
+                blob.draw();
             });
 
             mouse.vx = (mouse.x - lastMouse.x) * 0.1;
@@ -153,7 +148,7 @@
         
         window.addEventListener('touchmove', (e) => {
             if (e.touches.length > 0) {
-                e.preventDefault(); 
+                e.preventDefault();
                 mouse.x = e.touches[0].clientX;
                 mouse.y = e.touches[0].clientY;
             }
